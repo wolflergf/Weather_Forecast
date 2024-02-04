@@ -1,47 +1,46 @@
-""" This is the main file for the Streamlit application """
-# Importing the required module
 import streamlit as st
 import plotly.express as px
+from backend import get_data
 
-# Setting the title of the application
-st.title("Weather Forecast for the next days")
-
-# Taking input from the user for the city name and country code
-# The input should be in the format 'City, Country Code'
-place = st.text_input(
-    "Enter the city name and country code separated by comma (e.g. London, GB)"
-)
-
-# Taking input from the user for the number of days for the forecast
-# The user can select a number between 1 and 5 using a slider
+# Add title, text input, slider, selectbox, and subheader
+st.title("Weather Forecast for the Next Days")
+place = st.text_input("Place: ")
 days = st.slider(
-    "Forecast for the next how many days?",
+    "Forecast Days",
     min_value=1,
     max_value=5,
-    help="Select the number of days for which you want to see the forecast",
+    help="Select the number of forecasted days",
 )
+option = st.selectbox("Select data to view", ("Temperature", "Sky"))
+st.subheader(f"{option} for the next {days} days in {place}")
 
-# Providing options to the user for the type of data they want to view
-# The user can select between 'Temperature' and 'Sky'
-option = st.selectbox("Select data view", ("Temperature", "Sky"))
+if place:
+    # Get the temperature/sky data
+    try:
+        filtered_data = get_data(place, days)
 
-# Displaying the selected options to the user
-st.subheader("{} for the next {} days in {}".format(option, days, place))
+        if option == "Temperature":
+            temperatures = [dict["main"]["temp"] / 10 for dict in filtered_data]
+            dates = [dict["dt_txt"] for dict in filtered_data]
+            # Create a temperature plot
+            figure = px.line(
+                x=dates, y=temperatures, labels={"x": "Date", "y": "Temperature (C)"}
+            )
+            st.plotly_chart(figure)
 
-
-def get_data(days):
-    dates = ["2021-01-01", "2021-01-02", "2021-01-03"]
-    temperatures = [10, 12, 17]
-    temperatures = [days * i for i in temperatures]
-    return dates, temperatures
-
-
-d, t = get_data(days)
-
-
-fig = px.line(
-    x=d,
-    y=t,
-    labels={"x": "Date", "y": "Temperature (C°)"},
-)
-st.plotly_chart(fig)
+        if option == "Sky":
+            images = {
+                "Clear": "images/clear.png",
+                "Clouds": "images/cloud.png",
+                "Rain": "images/rain.png",
+                "Snow": "images/snow.png",
+            }
+            sky_conditions = [dict["weather"][0]["main"] for dict in filtered_data]
+            image_paths = [images[condition] for condition in sky_conditions]
+            print(sky_conditions)
+            st.image(image_paths, width=115)
+    except KeyError:
+        st.markdown(
+            "<h4 style='text-align: center; color: red;'>Please enter a valid place.</h>",
+            unsafe_allow_html=True,
+        )
